@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+             xmlns:beans="http://www.springframework.org/schema/beans"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.springframework.org/schema/beans
+                        http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+                        http://www.springframework.org/schema/context
+                        http://www.springframework.org/schema/context/spring-context-3.1.xsd
+                        http://www.springframework.org/schema/tx
+                        http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+                        http://www.springframework.org/schema/security
+                        http://www.springframework.org/schema/security/spring-security.xsd">
+
+   <http pattern="/login.jsp" security="none"></http>
+    <http auto-config="false">
+        <!--<intercept-url pattern="/login.jsp" access="IS_AUTHENTICATED_ANONYMOUSLY" />-->
+        <!--<intercept-url pattern="/adminPage.jsp" access="ROLE_ADMIN" />-->
+        <!--<intercept-url pattern="/**" access="ROLE_USER" />-->
+        <form-login login-page="/login.jsp"
+                    default-target-url="/index.jsp"
+                    authentication-failure-url="/login.jsp?error=true" />
+        <logout invalidate-session="true"
+                logout-success-url="/login.jsp"
+                logout-url="/j_spring_security_logout"/>
+        <!-- 通过配置custom-filter来增加过滤器，before="FILTER_SECURITY_INTERCEPTOR"表示在SpringSecurity默认的过滤器之前执行。 -->
+        <custom-filter ref="filterSecurityInterceptor" before="FILTER_SECURITY_INTERCEPTOR" />
+    </http>
+
+    <!--<authentication-manager>-->
+        <!--<authentication-provider>-->
+            <!--<user-service>-->
+                <!--<user name="admin" password="123" authorities="ROLE_USER, ROLE_ADMIN" />-->
+                <!--<user name="user" password="123" authorities="ROLE_USER" />-->
+            <!--</user-service>-->
+        <!--</authentication-provider>-->
+
+        <!--<authentication-provider>-->
+            <!--<jdbc-user-service data-source-ref="dataSource"/>-->
+        <!--</authentication-provider>-->
+
+        <!--<authentication-provider>-->
+            <!--<jdbc-user-service data-source-ref="dataSource"-->
+                               <!--users-by-username-query="select username,password,status as enabled from user where username = ?"-->
+                               <!--authorities-by-username-query="select user.username,role.name from user,role,user_role-->
+                                    <!--where user.id=user_role.user_id and-->
+                                    <!--user_role.role_id=role.id and user.username=?"/>-->
+        <!--</authentication-provider>-->
+    <!--</authentication-manager>-->
+
+
+
+
+    <!-- 数据源 -->
+    <beans:bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"
+                destroy-method="close">
+        <!-- 此为c3p0在spring中直接配置datasource c3p0是一个开源的JDBC连接池 -->
+        <beans:property name="driverClass" value="com.mysql.jdbc.Driver" />
+
+        <beans:property name="jdbcUrl"
+                        value="jdbc:mysql://localhost:3306/ssdemo?characterEncoding=UTF-8" />
+        <beans:property name="user" value="root" />
+        <beans:property name="password" value="root" />
+        <beans:property name="maxPoolSize" value="50"></beans:property>
+        <beans:property name="minPoolSize" value="10"></beans:property>
+        <beans:property name="initialPoolSize" value="10"></beans:property>
+        <beans:property name="maxIdleTime" value="25000"></beans:property>
+        <beans:property name="acquireIncrement" value="1"></beans:property>
+        <beans:property name="acquireRetryAttempts" value="30"></beans:property>
+        <beans:property name="acquireRetryDelay" value="1000"></beans:property>
+        <beans:property name="testConnectionOnCheckin" value="true"></beans:property>
+        <beans:property name="idleConnectionTestPeriod" value="18000"></beans:property>
+        <beans:property name="checkoutTimeout" value="5000"></beans:property>
+        <beans:property name="automaticTestTable" value="t_c3p0"></beans:property>
+    </beans:bean>
+
+    <!-- 拦截器 -->
+    <beans:bean id="filterSecurityInterceptor"
+                class="org.springframework.security.web.access.intercept.FilterSecurityInterceptor">
+        <!-- 判断用户是否有权限访问资源 -->
+        <beans:property name="accessDecisionManager" ref="accessDecisionManager" />
+        <!-- 用户拥有资源的权限 -->
+        <beans:property name="authenticationManager" ref="authenticationManager" />
+        <!-- 资源与权限对应关系 -->
+        <beans:property name="securityMetadataSource" ref="securityMetadataSource" />
+    </beans:bean>
+
+    <!-- 授权管理器 -->
+    <beans:bean class="com.lhx.springsecurity.config.MyAccessDecisionManager" id="accessDecisionManager">
+    </beans:bean>
+    <!--认证管理器-->
+    <authentication-manager alias="authenticationManager">
+        <authentication-provider>
+            <jdbc-user-service data-source-ref="dataSource" id="usersService"
+                               users-by-username-query="select username,password,status as enabled from user where username = ?"
+                               authorities-by-username-query="select user.username,role.name from user,role,user_role
+                                    where user.id=user_role.user_id and
+                                    user_role.role_id=role.id and user.username=?" />
+        </authentication-provider>
+    </authentication-manager>
+    <!--资源与权限对应关系-->
+    <beans:bean id="securityMetadataSource"
+                class="com.lhx.springsecurity.config.MyFilterInvocationSecurityMetadataSource">
+        <beans:property name="builder" ref="builder"></beans:property>
+    </beans:bean>
+
+    <beans:bean id="builder" class="com.lhx.springsecurity.config.JdbcRequestMapBulider">
+        <beans:property name="dataSource" ref="dataSource" />
+        <beans:property name="resourceQuery"
+                        value="select re.res_string,r.name from role r,resc re,resc_role rr where
+        r.id=rr.role_id and re.id=rr.resc_id" />
+    </beans:bean>
+</beans:beans>
